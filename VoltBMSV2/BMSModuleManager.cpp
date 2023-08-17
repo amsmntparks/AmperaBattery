@@ -73,14 +73,13 @@ int BMSModuleManager::seriescells()
 
 void BMSModuleManager::decodecan(CAN_message_t &msg)
 {
-  int Id, CMU, Cells = 0;
-
-  CMU = (msg.id & 0x00F) + 1;
-  Id = msg.id & 0x0F0;
-  Cells = 4;
-  modules[CMU].setExists(true);
-  modules[CMU].setReset(true);
-  modules[CMU].decodecan(Id, msg);
+  int MODULE = 0;
+  // modules voltages are on IDs are x200, x202, x204, and x206
+  MODULE = (msg.id & 0x00F) >> 1;  //convert the message IDs to module ID 0, 1, 2, 3
+  
+  modules[MODULE].setExists(true);
+  modules[MODULE].setReset(true);
+  modules[MODULE].decodecan(MODULE, msg);
 }
 
 void BMSModuleManager::getAllVoltTemp()

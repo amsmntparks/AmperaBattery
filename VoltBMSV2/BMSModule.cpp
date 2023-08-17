@@ -44,58 +44,54 @@ float BMSModule::decodeCellVoltage(int cell, CAN_message_t &msg, int msb, int ls
   }
 }
 
-void BMSModule::decodecan(int Id, CAN_message_t &msg)
+void BMSModule::decodecan(int Module, CAN_message_t &msg)
 {
-  if (0x1 < moduleAddress && moduleAddress < 0xC) // handle 8-cell frames
-  {
-    switch (Id)
+    if (msg.id == 0x200 || msg.id == 0x202 || msg.id == 0x204 || msg.id == 0x206)
     {
-    case 0x60:
-      decodeCellVoltage(1, msg, 0, 1);
-      decodeCellVoltage(2, msg, 2, 3);
-      decodeCellVoltage(3, msg, 4, 5);
-      decodeCellVoltage(4, msg, 6, 7);
-      break;
-
-    case 0x70:
-      decodeCellVoltage(5, msg, 0, 1);
-      decodeCellVoltage(6, msg, 2, 3);
-      decodeCellVoltage(7, msg, 4, 5);
-      decodeCellVoltage(8, msg, 6, 7);
-      break;
-
-    case 0xE0:
-      temperatures[0] = float(((msg.buf[6] << 8) + msg.buf[7]) * -0.0324 + 150);
-      break;
-
-    default:
-      break;
+        // there are 4 modules, 7 banks per module, and 3 cells per bank
+        // the bank ID is coded as the biggest 3 bits (7,6,5) of the 6th (index 0) byte of the message
+        int bank = msg.buf[6] >> 5; // shift the bank ID byte to the right by 5 to leave only the biggest 3 bits
+        // The 3 cell voltages for this bank are kind of hard to describe, but open the DBC file in Kvaser DB Editor to visualize
+        cellVolt[bank * 3 + 0] = float(((msg.buf[0] & 0x1F) << 7) + (msg.buf[1] >> 1)) * 0.00125;    //A (first) voltage in the bank
+        cellVolt[bank * 3 + 1] = float(((msg.buf[2] & 0x1F) << 7) + (msg.buf[3] >> 1)) * 0.00125;    //B (second) voltage in the bank
+        cellVolt[bank * 3 + 2] = float(((msg.buf[4] & 0xFF) << 4) + (msg.buf[5] >> 4)) * 0.00125;    //C (third) voltage in the bank
     }
-  }
-  else // handle 6-cell frames
-  {
-    switch (Id)
+    else if (msg.id == 0x302) 
     {
-    case 0x60:
-      decodeCellVoltage(1, msg, 0, 1);
-      decodeCellVoltage(2, msg, 2, 3);
-      decodeCellVoltage(3, msg, 4, 5);
-      break;
+        // Battery Temp
 
-    case 0x70:
-      decodeCellVoltage(4, msg, 0, 1);
-      decodeCellVoltage(5, msg, 2, 3);
-      decodeCellVoltage(6, msg, 4, 5);
-      break;
-
-    case 0xE0:
-      temperatures[0] = float(((msg.buf[6] << 8) + msg.buf[7]) * -0.0324 + 150);
-      break;
-
-    default:
-      break;
     }
-  }
+    else if (msg.id == 0x460) 
+    {
+        // Coolant Temp
+
+    }
+    else 
+    {
+        switch (msg.id)
+        {
+        case 0x60:
+            decodeCellVoltage(1, msg, 0, 1);
+            decodeCellVoltage(2, msg, 2, 3);
+            decodeCellVoltage(3, msg, 4, 5);
+            decodeCellVoltage(4, msg, 6, 7);
+            break;
+
+        case 0x70:
+            decodeCellVoltage(5, msg, 0, 1);
+            decodeCellVoltage(6, msg, 2, 3);
+            decodeCellVoltage(7, msg, 4, 5);
+            decodeCellVoltage(8, msg, 6, 7);
+            break;
+
+        case 0xE0:
+            temperatures[0] = float(((msg.buf[6] << 8) + msg.buf[7]) * -0.0324 + 150);
+            break;
+
+        default:
+            break;
+        }
+    }
   /*
     if (getLowTemp() < lowestTemperature) lowestTemperature = getLowTemp();
     if (getHighTemp() > highestTemperature) highestTemperature = getHighTemp();

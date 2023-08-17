@@ -594,9 +594,9 @@ void loop() {
           }
           if (bms.getHighCellVolt() > settings.ChargeVsetpoint || bms.getHighTemperature() > settings.OverTSetpoint) {
             if (bms.getAvgCellVolt() > (settings.ChargeVsetpoint - settings.ChargeHys)) {
-              SOCcharged(2);
+              SOCcharged(2);  // set SOC to 100
             } else {
-              SOCcharged(1);
+              SOCcharged(1);  // set SOC to 95
             }
             digitalWrite(OUT3, LOW);  //turn off charger
             bmsstatus = Ready;
@@ -1171,6 +1171,8 @@ void updateSOC() {
 }
 
 void SOCcharged(int y) {
+  // Sets the SOC to 95 or 100
+  // Called when checking for hysteresis during charging
   if (y == 1) {
     SOC = 95;
     ampsecond = (settings.CAP * settings.Pstrings * 1000) / 0.27777777777778;  //reset to full, dependant on given capacity. Need to improve with auto correction for capcity.
@@ -2626,7 +2628,7 @@ void currentlimit() {
       if (bms.getLowTemperature() > settings.DisTSetpoint) {
         discurrent = discurrent - map(bms.getLowTemperature(), settings.DisTSetpoint, settings.OverTSetpoint, 0, settings.discurrentmax);
       }
-      //Voltagee based///
+      //Voltage based///
       if (bms.getLowCellVolt() > settings.UnderVSetpoint || bms.getLowCellVolt() > settings.DischVsetpoint) {
         if (bms.getLowCellVolt() < (settings.DischVsetpoint + settings.DisTaper)) {
           discurrent = discurrent - map(bms.getLowCellVolt(), settings.DischVsetpoint, (settings.DischVsetpoint + settings.DisTaper), settings.discurrentmax, 0);
