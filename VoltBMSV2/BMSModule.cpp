@@ -46,12 +46,15 @@ float BMSModule::decodeCellVoltage(int cell, CAN_message_t &msg, int msb, int ls
 
 void BMSModule::decodecan(int Module, CAN_message_t &msg)
 {
+    // module voltages are on message IDs x200, x202, x204, and x206
     if (msg.id == 0x200 || msg.id == 0x202 || msg.id == 0x204 || msg.id == 0x206)
     {
-        // there are 4 modules, 7 banks per module, and 3 cells per bank
+        // there CAN messages are structured so there are 4 banks (0-3), 8 Modules (0-7) per bank, and 3 cells (A-C) per bank
         // the bank ID is coded as the biggest 3 bits (7,6,5) of the 6th (index 0) byte of the message
-        int bank = msg.buf[6] >> 5; // shift the bank ID byte to the right by 5 to leave only the biggest 3 bits
-        // The 3 cell voltages for this bank are kind of hard to describe, but open the DBC file in Kvaser DB Editor to visualize
+        // This message structure doesn't really correspond to the physical layout of the cells
+        int bank = (msg.id & 0x00F) >> 1;  //convert the message IDs to mod ID 0, 1, 2, 3
+        // this should give us 12 (3 * 4) cell voltages per Module - again not exactly matching the physical layout
+        // The 3 cell voltages for the bank are kind of hard to describe, but open the DBC file in Kvaser DB Editor to visualize
         cellVolt[bank * 3 + 0] = float(((msg.buf[0] & 0x1F) << 7) + (msg.buf[1] >> 1)) * 0.00125;    //A (first) voltage in the bank
         cellVolt[bank * 3 + 1] = float(((msg.buf[2] & 0x1F) << 7) + (msg.buf[3] >> 1)) * 0.00125;    //B (second) voltage in the bank
         cellVolt[bank * 3 + 2] = float(((msg.buf[4] & 0xFF) << 4) + (msg.buf[5] >> 4)) * 0.00125;    //C (third) voltage in the bank
@@ -59,13 +62,13 @@ void BMSModule::decodecan(int Module, CAN_message_t &msg)
     else if (msg.id == 0x302) 
     {
         // Battery Temp
-
+        // There are 6 sensors in the pack and they don't exactly map to modules, but that's what I'm doing
+        // this is kind of hacky, and could fail if a short msg.buf got passed in here somehow
+        if (Module <= 6) {
+            temperatures[0] = (float(msg.buf[Module + 1]) * 0.5) - 40.0;
+        }
     }
-    else if (msg.id == 0x460) 
-    {
-        // Coolant Temp
-
-    }
+    
     else 
     {
         switch (msg.id)
@@ -251,9 +254,19 @@ float BMSModule::getModuleVoltage()
 
 float BMSModule::getTemperature(int temp)
 {
+    /*
+    // I don't know what this was doing. getTemperature is only referenced in printing out battery stats
+    // everything else uses temperatures[0]
+    
   if (temp < 0 || temp > 2)
     return 0.0f;
+  */
   return temperatures[temp];
+}
+
+void BMSModule::setTemperature(int tempIndex, float temp)
+{
+    temperatures[tempIndex] = temp;
 }
 
 void BMSModule::setAddress(int newAddr)

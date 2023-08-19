@@ -24,6 +24,7 @@ public:
   float getAvgTemp();
   float getModuleVoltage();
   float getTemperature(int temp);
+  void setTemperature(int tempIndex, float temp);
   uint8_t getFaults();
   uint8_t getAlerts();
   uint8_t getCOVCells();
@@ -39,7 +40,7 @@ public:
   int getCellsUsed();
 
 private:
-  float cellVolt[33]; // calculated as 16 bit value * 6.250 / 16383 = volts
+  float cellVolt[33]; // calculated as 12 bit value * 0.00125 = volts
   float lowestCellVolt[33];
   float highestCellVolt[33];
   float moduleVolt;      // calculated as 16 bit value * 33.333 / 16383 = volts

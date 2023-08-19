@@ -1,6 +1,7 @@
 #pragma once
-#include "config.h"
+
 #include "BMSModule.h"
+#include "config.h"
 #include <FlexCAN.h>
 
 class BMSModuleManager
@@ -25,6 +26,8 @@ public:
   float getAvgTemperature();
   float getHighTemperature();
   float getLowTemperature();
+  float getInletCoolantTemperature();
+  float getOutletCoolantTemperature();
   float getAvgCellVolt();
   float getLowCellVolt();
   float getHighCellVolt();
@@ -51,6 +54,8 @@ private:
   float highestPackTemp;
   float highTemp;
   float lowTemp;
+  float inletCoolantTemp;
+  float outletCoolantTemp;
   BMSModule modules[MAX_MODULE_ADDR + 1]; // store data for as many modules as we've configured for.
   int batteryID;
   int numFoundModules; // The number of modules that seem to exist

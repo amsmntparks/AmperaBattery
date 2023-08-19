@@ -2526,15 +2526,22 @@ void canread() {
       break;
   }
 
-  if (inMsg.id >= 0x460 && inMsg.id < 0x480)  //do volt magic if ids are ones identified to be modules
+  // module voltages are on message IDs x200, x202, x204, and x206
+  if (msg.id == 0x200 || msg.id == 0x202 || msg.id == 0x204 || msg.id == 0x206)
   {
     //DISABLE debugging otherwise message ids take over window
     //Serial.println(inMsg.id, HEX);
     bms.decodecan(inMsg);  //do volt magic if ids are ones identified to be modules
   }
-  if (inMsg.id >= 0x7E0 && inMsg.id < 0x7F0)  //do volt magic if ids are ones identified to be modules
+  else if (msg.id == 0x302) 
   {
+      // battery temps
     bms.decodecan(inMsg);  //do volt magic if ids are ones identified to be modules
+  }
+  else if (msg.id == 0x460)
+  {
+      // Coolant Temp
+      bms.decodecan(inMsg);
   }
   if (debug == 1) {
     if (candebug == 1) {

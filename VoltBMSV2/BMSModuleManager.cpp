@@ -21,7 +21,7 @@ BMSModuleManager::BMSModuleManager()
 
 void BMSModuleManager::clearmodules()
 {
-  for (int y = 1; y < MAX_MODULE_ADDR; y++)
+  for (int y = 1; y <= MAX_MODULE_ADDR; y++)
   {
     if (modules[y].isExisting())
     {
@@ -61,7 +61,7 @@ bool BMSModuleManager::checkcomms()
 int BMSModuleManager::seriescells()
 {
   spack = 0;
-  for (int y = 1; y < MAX_MODULE_ADDR; y++)
+  for (int y = 1; y <= MAX_MODULE_ADDR; y++)
   {
     if (modules[y].isExisting())
     {
@@ -73,13 +73,34 @@ int BMSModuleManager::seriescells()
 
 void BMSModuleManager::decodecan(CAN_message_t &msg)
 {
-  int MODULE = 0;
-  // modules voltages are on IDs are x200, x202, x204, and x206
-  MODULE = (msg.id & 0x00F) >> 1;  //convert the message IDs to module ID 0, 1, 2, 3
-  
-  modules[MODULE].setExists(true);
-  modules[MODULE].setReset(true);
-  modules[MODULE].decodecan(MODULE, msg);
+    if (msg.id == 0x200 || msg.id == 0x202 || msg.id == 0x204 || msg.id == 0x206)
+    {
+        int MODULE = 1;
+        // get the module ID (0-7) from the message data
+        MODULE = 1 + (msg.buf[6] >> 5); // shift the Module ID byte to the right by 5 to leave only the biggest 3 bits
+
+        modules[MODULE].setExists(true);
+        modules[MODULE].setReset(true);
+        modules[MODULE].decodecan(MODULE, msg);
+    } 
+    else if (msg.id == 0x302) 
+    {
+        // there are 6 temp sensors and this doesn't map perfectly to the number of modules
+        for (int x = 1; x <= 6; x++)
+        {
+            if (modules[x].isExisting())
+            {
+                modules[x].setTemperature(0, (float(msg.buf[x]) * 0.5) - 40.0);
+            }
+        }
+    }
+    else if (msg.id == 0x460)
+    {
+        // coolant temps
+        // the in/outlet coolant temps are 10 bits long in bytes 0,1 and 2,3 respectively
+        inletCoolantTemp = (float((msg.buf[0] & 0x03) << 8 + msg.buf[1]) * 0.125) - 40.0;
+        outletCoolantTemp = (float((msg.buf[2] & 0x03) << 8 + msg.buf[3]) * 0.125) - 40.0;
+    }
 }
 
 void BMSModuleManager::getAllVoltTemp()
@@ -306,6 +327,16 @@ float BMSModuleManager::getLowTemperature()
   return lowTemp;
 }
 
+float BMSModuleManager::getInletCoolantTemperature() 
+{
+    return inletCoolantTemp;
+}
+
+float BMSModuleManager::getOutletCoolantTemperature() 
+{
+    return outletCoolantTemp;
+}
+
 float BMSModuleManager::getAvgCellVolt()
 {
   float avg = 0.0f;
@@ -332,7 +363,7 @@ void BMSModuleManager::printPackSummary()
   Logger::console(0, "Modules: %i  Cells: %i  Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules, seriescells(),
                   getPackVoltage(), getAvgCellVolt(), getAvgTemperature());
   Logger::console(0, "");
-  for (int y = 1; y < MAX_MODULE_ADDR; y++)
+  for (int y = 1; y <= MAX_MODULE_ADDR; y++)
   {
     if (modules[y].isExisting())
     {
@@ -448,7 +479,7 @@ void BMSModuleManager::printPackDetails(int digits, bool port)
     Logger::console(0, "Modules: %i Cells: %i Strings: %i  Voltage: %fV   Avg Cell Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV Delta Voltage: %zmV   Avg Temp: %fC ", numFoundModules, seriescells(),
                     Pstring, getPackVoltage(), getAvgCellVolt(), LowCellVolt, HighCellVolt, (HighCellVolt - LowCellVolt) * 1000, getAvgTemperature());
     Logger::console(0, "");
-    for (int y = 1; y < MAX_MODULE_ADDR; y++)
+    for (int y = 1; y <= MAX_MODULE_ADDR; y++)
     {
       if (modules[y].isExisting())
       {
@@ -545,7 +576,7 @@ void BMSModuleManager::printPackDetails(int digits, bool port)
     Logger::console(1, "Modules: %i Cells: %i Strings: %i  Voltage: %fV   Avg Cell Voltage: %fV  Low Cell Voltage: %fV   High Cell Voltage: %fV Delta Voltage: %zmV   Avg Temp: %fC ", numFoundModules, seriescells(),
                     Pstring, getPackVoltage(), getAvgCellVolt(), LowCellVolt, HighCellVolt, (HighCellVolt - LowCellVolt) * 1000, getAvgTemperature());
     Logger::console(1, "");
-    for (int y = 1; y < MAX_MODULE_ADDR; y++)
+    for (int y = 1; y <= MAX_MODULE_ADDR; y++)
     {
       if (modules[y].isExisting())
       {
