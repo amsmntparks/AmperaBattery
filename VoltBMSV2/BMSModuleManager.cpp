@@ -292,14 +292,14 @@ float BMSModuleManager::getAvgTemperature()
   lowTemp = 999.0f;
   highTemp = -999.0f;
   int y = 0; //counter for modules below -70 (no sensors connected)
-  numFoundModules = 0;
+  int tempFoundModules = 0;
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
     if (modules[x].isExisting())
     {
       if (modules[x].getAvgTemp() > 0)
       {
-        numFoundModules++;
+        tempFoundModules++;
         avg += modules[x].getAvgTemp();
         if (modules[x].getHighTemp() > highTemp)
         {
@@ -312,7 +312,7 @@ float BMSModuleManager::getAvgTemperature()
       }
     }
   }
-  avg = avg / (float)(numFoundModules);
+  avg = avg / (float)(tempFoundModules);
 
   return avg;
 }
@@ -339,11 +339,15 @@ float BMSModuleManager::getOutletCoolantTemperature()
 
 float BMSModuleManager::getAvgCellVolt()
 {
+  numFoundModules = 0;
   float avg = 0.0f;
   for (int x = 1; x <= MAX_MODULE_ADDR; x++)
   {
-    if (modules[x].isExisting())
-      avg += modules[x].getAverageV();
+      if (modules[x].isExisting())
+      {
+          numFoundModules++;
+          avg += modules[x].getAverageV();
+      }
   }
   avg = avg / (float)numFoundModules;
 
