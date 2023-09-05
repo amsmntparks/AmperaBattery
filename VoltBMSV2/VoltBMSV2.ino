@@ -43,7 +43,7 @@ EEPROMSettings settings;
 
 
 /////Version Identifier/////////
-int firmver = 230608;
+int firmver = 230609;
 
 //Curent filter//
 float filterFrequency = 5.0;
@@ -198,7 +198,7 @@ void loadSettings() {
   Logger::console(0, "Resetting to factory defaults");
   settings.version = EEPROM_VERSION;
   settings.checksum = 2;
-  settings.canSpeed = 125000;
+  settings.canSpeed = 500000;
   settings.batteryID = 0x01;  //in the future should be 0xFF to force it to ask for an address
   settings.OverVSetpoint = 4.2f;
   settings.UnderVSetpoint = 3.0f;
@@ -217,9 +217,9 @@ void loadSettings() {
   settings.balanceVoltage = 3.9f;
   settings.balanceHyst = 0.04f;
   settings.logLevel = 2;
-  settings.CAP = 100;               //battery size in Ah
+  settings.CAP = 46;               //battery size in Ah
   settings.Pstrings = 1;            // strings in parallel used to divide voltage of pack
-  settings.Scells = 12;             //Cells in series
+  settings.Scells = 96;             // Cells in series
   settings.StoreVsetpoint = 3.8;    // V storage mode charge max
   settings.discurrentmax = 300;     // max discharge current in 0.1A
   settings.DisTaper = 0.3f;         //V offset to bring in discharge taper to Zero Amps at settings.DischVsetpoint
@@ -231,7 +231,7 @@ void loadSettings() {
   settings.socvolt[3] = 90;         //Voltage and SOC curve for voltage based SOC calc
   settings.invertcur = 0;           //Invert current sensor direction
   settings.cursens = 2;
-  settings.voltsoc = 0;           //SOC purely voltage based
+  settings.voltsoc = 1;           //SOC purely voltage based
   settings.Pretime = 5000;        //ms of precharge time
   settings.conthold = 50;         //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000;     //ma before closing main contator
@@ -244,7 +244,7 @@ void loadSettings() {
   settings.gaugehigh = 255;       //full fuel gauge pwm
   settings.ESSmode = 0;           //activate ESS mode
   settings.ncur = 1;              //number of multiples to use for current measurement
-  settings.chargertype = 2;       // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
+  settings.chargertype = 0;       // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
   settings.chargerspd = 100;      //ms per message
   settings.triptime = 5000;       //ms of allowed undervoltage before throwing open stopping discharge.
   settings.CurDead = 5;           // mV of dead band on current sensor
@@ -287,7 +287,7 @@ void setup() {
   analogWriteFrequency(OUT7, pwmfreq);
   analogWriteFrequency(OUT8, pwmfreq);
 
-  Can0.begin(125000);
+  Can0.begin(500000);
 
   //set filters for standard
   for (int i = 0; i < 8; i++) {
@@ -734,27 +734,28 @@ void loop() {
       //bms.clearmodules(); // Not functional
       if (bms.checkcomms())
       {
-      //no missing modules
-      SERIALCONSOLE.println("  ");
-      SERIALCONSOLE.print(" ALL OK NO MODULE MISSING :) ");
-      SERIALCONSOLE.println("  ");
-      if (  bmsstatus == Error)
-      {
-        bmsstatus = Boot;
-      }
+        //no missing modules
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print(" ALL OK NO MODULE MISSING :) ");
+        SERIALCONSOLE.println("  ");
+        if (  bmsstatus == Error)
+        {
+          bmsstatus = Boot;
+        }
       }
       else
       {
-      //missing module
-      SERIALCONSOLE.println("  ");
-      SERIALCONSOLE.print("   !!! MODULE MISSING !!!");
-      SERIALCONSOLE.println("  ");
-      //bmsstatus = Error;
-      ErrorReason = 4;
+        //missing module
+        SERIALCONSOLE.println("  ");
+        SERIALCONSOLE.print("   !!! MODULE MISSING !!!");
+        SERIALCONSOLE.println("  ");
+        //bmsstatus = Error;
+        ErrorReason = 4;
       }
     */
     cleartime = millis();
   }
+  /*
   if (millis() - looptime1 > settings.chargerspd) {
     looptime1 = millis();
     if (settings.ESSmode == 1) {
@@ -770,6 +771,7 @@ void loop() {
       }
     }
   }
+  */
 }
 
 void alarmupdate() {
