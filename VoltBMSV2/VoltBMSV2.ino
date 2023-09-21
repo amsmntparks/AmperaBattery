@@ -232,7 +232,7 @@ void loadSettings() {
   settings.invertcur = 0;           //Invert current sensor direction
   settings.cursens = 2;
   settings.voltsoc = 1;           //SOC purely voltage based
-  settings.Pretime = 5000;        //ms of precharge time
+  settings.Pretime = 2000;        //ms of precharge time
   settings.conthold = 50;         //holding duty cycle for contactor 0-255
   settings.Precurrent = 1000;     //ma before closing main contator
   settings.convhigh = 58;         // mV/A current sensor high range channel
@@ -248,7 +248,7 @@ void loadSettings() {
   settings.chargerspd = 100;      //ms per message
   settings.triptime = 5000;       //ms of allowed undervoltage before throwing open stopping discharge.
   settings.CurDead = 5;           // mV of dead band on current sensor
-  settings.ChargerDirect = 1;     //1 - charger is always connected to HV battery // 0 - Charger is behind the contactors
+  settings.ChargerDirect = 0;     //1 - charger is always connected to HV battery // 0 - Charger is behind the contactors
   settings.disp = 1;              // 1 - display is used 0 - mirror serial data onto serial bus
   settings.SerialCan = 1;         // 1- serial can adapter used 0- Not used
   settings.SerialCanSpeed = 500;  //serial can adapter speed
@@ -268,10 +268,10 @@ void setup() {
   delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
   //pinMode(ACUR1, INPUT);//Not required for Analogue Pins
   //pinMode(ACUR2, INPUT);
-  pinMode(IN1, INPUT);
-  pinMode(IN2, INPUT);
-  pinMode(IN3, INPUT);
-  pinMode(IN4, INPUT);
+  pinMode(IN1, INPUT);    // Key On
+  pinMode(IN2, INPUT);    // Alt Charge current
+  pinMode(IN3, INPUT);    // AC present
+  pinMode(IN4, INPUT);    // CP cond signal (not implemented yet)
   pinMode(OUT1, OUTPUT);  // drive contactor
   pinMode(OUT2, OUTPUT);  // precharge
   pinMode(OUT3, OUTPUT);  // charge relay
@@ -1297,7 +1297,7 @@ void contcon() {
   }
 }
 
-void calcur() {
+calcur() {
   adc->adc0->startContinuous(ACUR1);
   sensor = 1;
   x = 0;
@@ -1327,7 +1327,7 @@ void calcur() {
   SERIALCONSOLE.print(" current offset 2 calibrated ");
   SERIALCONSOLE.println("  ");
 }
-void VEcan()  //communication with Victron system over CAN
+VEcan()  //communication with Victron system over CAN
 {
   msg.id = 0x351;
   msg.len = 8;
@@ -1416,7 +1416,7 @@ void VEcan()  //communication with Victron system over CAN
 }
 
 
-void BMVmessage()  //communication with the Victron Color Control System over VEdirect
+BMVmessage()  //communication with the Victron Color Control System over VEdirect
 {
   lasttime = millis();
   x = 0;
@@ -1498,7 +1498,7 @@ void BMVmessage()  //communication with the Victron Color Control System over VE
 }
 
 // Settings menu
-void menu() {
+menu() {
 
   incomingByte = Serial.read();  // read the incoming byte:
   if (menuload == 4) {
@@ -2522,7 +2522,7 @@ void menu() {
   }
 }
 
-void canread() {
+canread() {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
   switch (inMsg.id) {
@@ -2576,7 +2576,7 @@ void canread() {
   }
 }
 
-void CAB300() {
+CAB300() {
   for (int i = 0; i < 4; i++) {
     inbox = (inbox << 8) | inMsg.buf[i];
   }
