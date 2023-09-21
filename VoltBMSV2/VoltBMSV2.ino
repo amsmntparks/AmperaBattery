@@ -269,17 +269,17 @@ void setup() {
   //pinMode(ACUR1, INPUT);//Not required for Analogue Pins
   //pinMode(ACUR2, INPUT);
   pinMode(IN1, INPUT);    // Key On
-  pinMode(IN2, INPUT);    // Alt Charge current
-  pinMode(IN3, INPUT);    // AC present
+  pinMode(IN2, INPUT);    // Alt Charge current - [Unused]
+  pinMode(IN3, INPUT);    // AC present - driven by charger
   pinMode(IN4, INPUT);    // CP cond signal (not implemented yet)
-  pinMode(OUT1, OUTPUT);  // drive contactor
-  pinMode(OUT2, OUTPUT);  // precharge
-  pinMode(OUT3, OUTPUT);  // charge relay
-  pinMode(OUT4, OUTPUT);  // Negative contactor
-  pinMode(OUT5, OUTPUT);  // pwm driver output
-  pinMode(OUT6, OUTPUT);  // pwm driver output
-  pinMode(OUT7, OUTPUT);  // pwm driver output
-  pinMode(OUT8, OUTPUT);  // pwm driver output
+  pinMode(OUT1, OUTPUT);  // drive contactor - [Unused]
+  pinMode(OUT2, OUTPUT);  // precharge - [Unused]
+  pinMode(OUT3, OUTPUT);  // charge relay - drives charger enable
+  pinMode(OUT4, OUTPUT);  // Negative contactor - drives fault warning light
+  pinMode(OUT5, OUTPUT);  // pwm driver output - [Unused]
+  pinMode(OUT6, OUTPUT);  // pwm driver output - [Unused]
+  pinMode(OUT7, OUTPUT);  // pwm driver output - [Unused]
+  pinMode(OUT8, OUTPUT);  // pwm driver output - Gauge out
   pinMode(led, OUTPUT);
 
   analogWriteFrequency(OUT5, pwmfreq);
@@ -389,7 +389,7 @@ void loop() {
 
   if (outputcheck != 1) {
     contcon();
-    if (settings.ESSmode == 1) {
+    /*if (settings.ESSmode == 1) {
       if (bmsstatus != Error) {
         contctrl = contctrl | 4;  //turn on negative contactor
 
@@ -485,15 +485,15 @@ void loop() {
           }
         }
       } else {
-        /*
-          digitalWrite(OUT2, HIGH);//trip breaker
-          Discharge = 0;
-          digitalWrite(OUT4, LOW);
-          digitalWrite(OUT3, LOW);//turn off charger
-          digitalWrite(OUT2, LOW);
-          digitalWrite(OUT1, LOW);//turn off discharge
-          contctrl = 0; //turn off out 5 and 6
-        */
+        
+        //  digitalWrite(OUT2, HIGH);//trip breaker
+        //  Discharge = 0;
+        //  digitalWrite(OUT4, LOW);
+        //  digitalWrite(OUT3, LOW);//turn off charger
+        //  digitalWrite(OUT2, LOW);
+        //  digitalWrite(OUT1, LOW);//turn off discharge
+        //  contctrl = 0; //turn off out 5 and 6
+        
         if (SOCset == 1) {
           if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint) {
             digitalWrite(OUT2, HIGH);  //trip breaker
@@ -503,11 +503,11 @@ void loop() {
         }
       }
       //pwmcomms();
-    } else {
+    } else {*/
       switch (bmsstatus) {
         case (Boot):
           Discharge = 0;
-          digitalWrite(OUT4, LOW);
+          digitalWrite(OUT4, LOW); //turn off the warning light
           digitalWrite(OUT3, LOW);  //turn off charger
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);  //turn off discharge
@@ -517,7 +517,7 @@ void loop() {
 
         case (Ready):
           Discharge = 0;
-          digitalWrite(OUT4, LOW);
+          digitalWrite(OUT4, LOW);  // turn off the warning light
           digitalWrite(OUT3, LOW);  //turn off charger
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);  //turn off discharge
@@ -569,8 +569,8 @@ void loop() {
         case (Charge):
           if (settings.ChargerDirect > 0) {
             Discharge = 0;
-            digitalWrite(OUT4, LOW);
-            digitalWrite(OUT2, LOW);
+            digitalWrite(OUT4, LOW);  //turn off the warning light
+            //digitalWrite(OUT2, LOW);
             digitalWrite(OUT1, LOW);  //turn off discharge
             contctrl = 0;             //turn off out 5 and 6
           }
@@ -609,7 +609,7 @@ void loop() {
 
         case (Error):
           Discharge = 0;
-          digitalWrite(OUT4, LOW);
+          digitalWrite(OUT4, HIGH); //turn on the warning light
           digitalWrite(OUT3, LOW);  //turn off charger
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);  //turn off discharge
@@ -1188,7 +1188,7 @@ void SOCcharged(int y) {
 void Prechargecon() {
   if (digitalRead(IN1) == HIGH || digitalRead(IN3) == HIGH)  //detect Key ON or AC present
   {
-    digitalWrite(OUT4, HIGH);  //Negative Contactor Close
+    digitalWrite(OUT4, LOW);  //turn off the warning light
     contctrl = 2;
     if (Pretimer + settings.Pretime > millis() || currentact > settings.Precurrent) {
       digitalWrite(OUT2, HIGH);  //precharge
@@ -1211,7 +1211,7 @@ void Prechargecon() {
   } else {
     digitalWrite(OUT1, LOW);
     digitalWrite(OUT2, LOW);
-    digitalWrite(OUT4, LOW);
+    digitalWrite(OUT4, LOW);  //turn off the warning light
     bmsstatus = Ready;
     contctrl = 0;
   }
@@ -1524,7 +1524,7 @@ menu() {
           digitalWrite(OUT1, LOW);
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT3, LOW);
-          digitalWrite(OUT4, LOW);
+          digitalWrite(OUT4, LOW);    //turn off the warning light
         }
         incomingByte = 'd';
         break;
