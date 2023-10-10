@@ -503,7 +503,7 @@ void loop() {
         }
       }
       //pwmcomms();
-    } else {*/
+    } else */{
       switch (bmsstatus) {
         case (Boot):
           Discharge = 0;
@@ -1297,7 +1297,7 @@ void contcon() {
   }
 }
 
-calcur() {
+void calcur() {
   adc->adc0->startContinuous(ACUR1);
   sensor = 1;
   x = 0;
@@ -1327,7 +1327,7 @@ calcur() {
   SERIALCONSOLE.print(" current offset 2 calibrated ");
   SERIALCONSOLE.println("  ");
 }
-VEcan()  //communication with Victron system over CAN
+void VEcan()  //communication with Victron system over CAN
 {
   msg.id = 0x351;
   msg.len = 8;
@@ -1416,7 +1416,7 @@ VEcan()  //communication with Victron system over CAN
 }
 
 
-BMVmessage()  //communication with the Victron Color Control System over VEdirect
+void BMVmessage()  //communication with the Victron Color Control System over VEdirect
 {
   lasttime = millis();
   x = 0;
@@ -1498,7 +1498,7 @@ BMVmessage()  //communication with the Victron Color Control System over VEdirec
 }
 
 // Settings menu
-menu() {
+void menu() {
 
   incomingByte = Serial.read();  // read the incoming byte:
   if (menuload == 4) {
@@ -2522,7 +2522,7 @@ menu() {
   }
 }
 
-canread() {
+void canread() {
   Can0.read(inMsg);
   // Read data: len = data length, buf = data byte(s)
   switch (inMsg.id) {
@@ -2576,7 +2576,7 @@ canread() {
   }
 }
 
-CAB300() {
+void CAB300() {
   for (int i = 0; i < 4; i++) {
     inbox = (inbox << 8) | inMsg.buf[i];
   }
