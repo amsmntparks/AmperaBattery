@@ -278,6 +278,7 @@ void setup() {
   pinMode(OUT4, OUTPUT);  // Negative contactor - drives fault warning light
   pinMode(OUT5, OUTPUT);  // pwm driver output - [Unused]
   pinMode(OUT6, OUTPUT);  // pwm driver output - [Unused]
+  //pinMode(OUT6, INPUT);  // HV battery fault signal. Not sure this does anything.
   pinMode(OUT7, OUTPUT);  // pwm driver output - [Unused]
   pinMode(OUT8, OUTPUT);  // pwm driver output - Gauge out
   pinMode(led, OUTPUT);
@@ -502,7 +503,7 @@ void loop() {
           }
         }
       }
-      //pwmcomms();
+      pwmcomms();
     } else */{
       switch (bmsstatus) {
         case (Boot):
@@ -621,11 +622,14 @@ void loop() {
                     }
           */
           if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint && digitalRead(IN1) == LOW) {
-            bmsstatus = Ready;
+              SERIALCONSOLE.println("Resetting bmsstatus to Ready");
+              bmsstatus = Ready;
           }
+          
           break;
       }
     }
+    pwmcomms();
     if (settings.cursens == Analoguedual || settings.cursens == Analoguesing) {
       getcurrent();
     }
@@ -715,7 +719,15 @@ void loop() {
       if (cellspresent != bms.seriescells() || cellspresent != (settings.Scells * settings.Pstrings))  //detect a fault in cells detected
       {
         SERIALCONSOLE.println("  ");
-        SERIALCONSOLE.print("   !!! Series Cells Fault !!!");
+        SERIALCONSOLE.println("   !!! Series Cells Fault !!!");
+        SERIALCONSOLE.print(" Cells Present: ");
+        SERIALCONSOLE.print(cellspresent);
+        SERIALCONSOLE.print(" BMS Series Cells: ");
+        SERIALCONSOLE.print(bms.seriescells());
+        SERIALCONSOLE.print(" Settings.Scells: ");
+        SERIALCONSOLE.print(settings.Scells);
+        SERIALCONSOLE.print(" Settings.Pstrings: ");
+        SERIALCONSOLE.print(settings.Pstrings);
         SERIALCONSOLE.println("  ");
         bmsstatus = Error;
         ErrorReason = 3;

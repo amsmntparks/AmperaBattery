@@ -501,7 +501,7 @@ void BMSModuleManager::printPackDetails(int digits, bool port)
         SERIALCONSOLE.print("V");
         if (modules[y].getCellsUsed() > 12)
         {
-          for (int i = 1; i < 12; i++)
+          for (int i = 0; i < 12; i++)
           {
             if (cellNum < 10)
               SERIALCONSOLE.print(" ");
@@ -554,7 +554,7 @@ void BMSModuleManager::printPackDetails(int digits, bool port)
         }
         else
         {
-          for (int i = 1; i < modules[y].getCellsUsed() + 1; i++)
+          for (int i = 0; i < modules[y].getCellsUsed() + 1; i++)
           {
             if (cellNum < 10)
               SERIALCONSOLE.print(" ");
