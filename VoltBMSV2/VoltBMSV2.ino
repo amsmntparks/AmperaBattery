@@ -93,6 +93,7 @@ byte bmsstatus = 0;
 #define Coda 6
 //
 
+bool batterySafeToCharge = false;
 
 int Discharge;
 int ErrorReason = 0;
@@ -101,7 +102,7 @@ int ErrorReason = 0;
 int pulltime = 1000;
 int contctrl, contstat = 0;  //1 = out 5 high 2 = out 6 high 3 = both high
 unsigned long conttimer1, conttimer2, conttimer3, Pretimer, Pretimer1 = 0;
-uint16_t pwmfreq = 10000;  //pwm frequency
+uint16_t pwmfreq = 256;  //pwm frequency (NOTE: Originally 10000)
 
 int pwmcurmax = 50;     //Max current to be shown with pwm
 int pwmcurmid = 50;     //Mid point for pwm dutycycle based on current
@@ -240,8 +241,8 @@ void loadSettings() {
   settings.changecur = 20000;     //mA change overpoint
   settings.offset1 = 1750;        //mV mid point of channel 1
   settings.offset2 = 1750;        //mV mid point of channel 2
-  settings.gaugelow = 50;         //empty fuel gauge pwm
-  settings.gaugehigh = 255;       //full fuel gauge pwm
+  settings.gaugelow = 75;         //empty fuel gauge pwm
+  settings.gaugehigh = 173;       //full fuel gauge pwm
   settings.ESSmode = 0;           //activate ESS mode
   settings.ncur = 1;              //number of multiples to use for current measurement
   settings.chargertype = 0;       // 1 - Brusa NLG5xx 2 - Volt charger 0 -No Charger
@@ -276,11 +277,11 @@ void setup() {
   pinMode(OUT2, OUTPUT);  // precharge - [Unused]
   pinMode(OUT3, OUTPUT);  // charge relay - drives charger enable
   pinMode(OUT4, OUTPUT);  // Negative contactor - drives fault warning light
-  pinMode(OUT5, OUTPUT);  // pwm driver output - [Unused]
+  pinMode(OUT5, OUTPUT);  // pwm driver output - Gauge out
   pinMode(OUT6, OUTPUT);  // pwm driver output - [Unused]
   //pinMode(OUT6, INPUT);  // HV battery fault signal. Not sure this does anything.
   pinMode(OUT7, OUTPUT);  // pwm driver output - [Unused]
-  pinMode(OUT8, OUTPUT);  // pwm driver output - Gauge out
+  pinMode(OUT8, OUTPUT);  // pwm driver output - [Unused]
   pinMode(led, OUTPUT);
 
   analogWriteFrequency(OUT5, pwmfreq);
@@ -519,7 +520,7 @@ void loop() {
         case (Ready):
           Discharge = 0;
           digitalWrite(OUT4, LOW);  // turn off the warning light
-          digitalWrite(OUT3, LOW);  //turn off charger
+          digitalWrite(OUT3, batterySafeToCharge);  //enable charger
           digitalWrite(OUT2, LOW);
           digitalWrite(OUT1, LOW);  //turn off discharge
           contctrl = 0;             //turn off out 5 and 6
@@ -530,7 +531,7 @@ void loop() {
           } else {
             balancecells = 0;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint - settings.WarnToff))  //detect AC present for charging and check not balancing
+          if (digitalRead(IN3) == HIGH)  //detect AC present for charging and check not balancing
           {
             if (settings.ChargerDirect == 1) {
               bmsstatus = Charge;
@@ -556,11 +557,12 @@ void loop() {
         case (Drive):
           Discharge = 1;
           //accurlim = 0;
+          digitalWrite(OUT3, batterySafeToCharge);  //enable charger
           if (digitalRead(IN1) == LOW)  //Key OFF
           {
             bmsstatus = Ready;
           }
-          if (digitalRead(IN3) == HIGH && (bms.getHighCellVolt() < (settings.ChargeVsetpoint - settings.ChargeHys)) && bms.getHighTemperature() < (settings.OverTSetpoint - settings.WarnToff))  //detect AC present for charging and check not balancing
+          if (digitalRead(IN3) == HIGH)  //detect AC present for charging and check not balancing
           {
             bmsstatus = Charge;
           }
@@ -586,7 +588,7 @@ void loop() {
             chargecurrentlimit = false;
             }
           */
-          digitalWrite(OUT3, HIGH);  //enable charger
+          digitalWrite(OUT3, batterySafeToCharge);  //enable charger
           if (bms.getHighCellVolt() > settings.balanceVoltage) {
             //bms.balanceCells();
             balancecells = 1;
@@ -621,9 +623,40 @@ void loop() {
                       bmsstatus = Charge;
                     }
           */
-          if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint && digitalRead(IN1) == LOW) {
-              SERIALCONSOLE.println("Resetting bmsstatus to Ready");
-              bmsstatus = Ready;
+          if (bms.getLowCellVolt() >= settings.UnderVSetpoint && bms.getHighCellVolt() <= settings.OverVSetpoint) {
+              if (digitalRead(IN1) == LOW) {
+                  SERIALCONSOLE.println("Resetting bmsstatus to Ready");
+                  bmsstatus = Ready;
+                  cellspresent = bms.seriescells();
+              }
+              else {
+                  SERIALCONSOLE.println("Resetting bmsstatus to Drive");
+                  bmsstatus = Drive;
+                  cellspresent = bms.seriescells();
+              }
+              if (digitalRead(IN3) == HIGH)  //detect AC present for charging and check not balancing
+              {
+                  if (settings.ChargerDirect == 1) {
+                      bmsstatus = Charge;
+                  }
+                  else {
+                      bmsstatus = Precharge;
+                      Pretimer = millis();
+                  }
+              }
+          }
+          else {
+              SERIALCONSOLE.println("BMS in error state... not resetting because low voltage: ");
+              SERIALCONSOLE.print(bms.getLowCellVolt());
+              SERIALCONSOLE.print(" is lower than UnderVSetpoint: ");
+              SERIALCONSOLE.print(settings.UnderVSetpoint);
+              SERIALCONSOLE.print(" or high cell voltage: ");
+              SERIALCONSOLE.print(bms.getHighCellVolt());
+              SERIALCONSOLE.print(" is over OverVSetpoint: ");
+              SERIALCONSOLE.print(settings.OverVSetpoint);
+              SERIALCONSOLE.print(" or digitalRead(In1): ");
+              SERIALCONSOLE.print(digitalRead(IN1));
+              SERIALCONSOLE.print(" is high");
           }
           
           break;
@@ -645,6 +678,7 @@ void loop() {
           if (bms.getLowCellVolt() < settings.UnderVSetpoint || bms.getHighCellVolt() < settings.UnderVSetpoint) {
             if (UnderTime < millis())  //check is last time not undervoltage is longer thatn UnderDur ago
             {
+                SERIALCONSOLE.println("662: Putting BMS in error state because of a low or high cell");
               bmsstatus = Error;
             }
           } else {
@@ -653,6 +687,7 @@ void loop() {
           if (bms.getLowCellVolt() > settings.OverVSetpoint || bms.getHighCellVolt() > settings.OverVSetpoint) {
             if (OverTime < millis())  //check is last time not undervoltage is longer thatn UnderDur ago
             {
+                SERIALCONSOLE.println("671: Putting BMS in error state because of a low or high cell");
               bmsstatus = Error;
             }
           } else {
@@ -662,26 +697,35 @@ void loop() {
       }
     } else  //In 'vehicle' mode
     {
+        batterySafeToCharge = true;
       if (bms.getLowCellVolt() < settings.UnderVSetpoint) {
         if (UnderTime < millis())  //check is last time not undervoltage is longer thatn UnderDur ago
         {
+            SERIALCONSOLE.println("684: Putting BMS in error state because of a low or high cell");
           bmsstatus = Error;
+          batterySafeToCharge = false;
         }
       } else {
         UnderTime = millis() + settings.triptime;
       }
 
       if (bms.getHighCellVolt() < settings.UnderVSetpoint || bms.getHighTemperature() > settings.OverTSetpoint) {
+          SERIALCONSOLE.println("692 Putting BMS in error state because of a temp issue");
         bmsstatus = Error;
       }
 
       if (bms.getHighCellVolt() > settings.OverVSetpoint) {
         if (OverTime < millis())  //check is last time not undervoltage is longer thatn UnderDur ago
         {
+            SERIALCONSOLE.println("699 Putting BMS in error state because of a high cell");
           bmsstatus = Error;
+          batterySafeToCharge = false;
         }
       } else {
         OverTime = millis() + settings.triptime;
+      }
+      if (bms.getHighTemperature() > settings.OverTSetpoint) {
+          batterySafeToCharge = false;
       }
     }
 
@@ -827,30 +871,89 @@ void alarmupdate() {
 
 void gaugeupdate() {
   if (gaugedebug == 1) {
-    SOCtest = SOCtest + 10;
+    SOCtest = SOCtest + 20;
     if (SOCtest > 1000) {
       SOCtest = 0;
     }
-    analogWrite(OUT8, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    //float mappedSOC = map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh);
+    float mappedSOC = mapSocToGauge(SOCtest * 0.1);
+    //analogWrite(OUT8, mappedSOC); //doesn't work
+    //analogWrite(OUT7, mappedSOC);
+    //analogWrite(OUT6, mappedSOC);
+    analogWrite(OUT5, mappedSOC);
 
-    SERIALCONSOLE.println("  ");
+    SERIALCONSOLE.println(" SOC DEBUG 1 ");
     SERIALCONSOLE.print("SOC : ");
     SERIALCONSOLE.print(SOCtest * 0.1);
     SERIALCONSOLE.print("  fuel pwm : ");
-    SERIALCONSOLE.print(map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    SERIALCONSOLE.print(mappedSOC);
+    SERIALCONSOLE.print(" range: ");
+    SERIALCONSOLE.print(settings.gaugelow);
+    SERIALCONSOLE.print(" of ");
+    SERIALCONSOLE.print(settings.gaugehigh);
     SERIALCONSOLE.println("  ");
   }
   if (gaugedebug == 2) {
     SOCtest = 0;
-    analogWrite(OUT8, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    analogWrite(OUT5, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    SERIALCONSOLE.println(" SOC DEBUG 2 ");
   }
   if (gaugedebug == 3) {
     SOCtest = 1000;
-    analogWrite(OUT8, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    analogWrite(OUT5, map(SOCtest * 0.1, 0, 100, settings.gaugelow, settings.gaugehigh));
+    SERIALCONSOLE.println(" SOC DEBUG 3 ");
   }
   if (gaugedebug == 0) {
-    analogWrite(OUT8, map(SOC, 0, 100, settings.gaugelow, settings.gaugehigh));
+    //SOCtest = map(SOC, 0, 100, settings.gaugelow, settings.gaugehigh);
+    analogWrite(OUT5, mapSocToGauge(SOC));
+    // SERIALCONSOLE.println(" SOC DEBUG 0 ");
+    
+    SERIALCONSOLE.println("  ");
+    SERIALCONSOLE.print("SOC : ");
+    SERIALCONSOLE.print(SOC);
+    SERIALCONSOLE.print("  fuel pwm : ");
+    SERIALCONSOLE.print(SOCtest);
+    SERIALCONSOLE.println("  ");
+    
   }
+}
+
+float mapSocToGauge(int inputSOC) {
+    inputSOC = constrain(inputSOC, 0, 100);
+    float gaugeRange = settings.gaugehigh - settings.gaugelow;
+    gaugeRange = constrain(gaugeRange, 1.0, 255.0);
+    //we have break points in the gauge range where we start using different slopes and offsets
+    float inputRanges[7] = {0.0, 10.0, 25.0, 50.0, 75.0, 90.0, 100.0};
+    //these are sort of magic numbers. I measured the pwm out values I wanted for each of the gauge break points
+    //and converted them to a percent of the total range + offset. 
+    // i.e. gaugeRangePercents[i] = (measured values[i] - settings.gaugelow) / gaugeRange
+    float gaugeRangePercents[7] = {0, 0.0375, 0.1528, 0.2917, 0.5208, 0.8194, 1.0};
+    // hardcoded the length of the arrays
+
+    //SERIALCONSOLE.println(" SOC Mapping: ");
+    //SERIALCONSOLE.print(inputSOC);
+    for (int i = 0; i < 7 - 1; i++) {
+        if (inputSOC >= inputRanges[i] && inputSOC < inputRanges[i + 1]) {
+            float gaugeMin = gaugeRange * gaugeRangePercents[i] + settings.gaugelow;
+            float gaugeMax = gaugeRange * gaugeRangePercents[i + 1] + settings.gaugelow;
+            float gaugeOutput = map(inputSOC, inputRanges[i], inputRanges[i+1], gaugeMin, gaugeMax);
+            /*
+            SERIALCONSOLE.print(" maps to i: ");
+            SERIALCONSOLE.print(i);
+            SERIALCONSOLE.print(", gaugeMin: ");
+            SERIALCONSOLE.print(gaugeMin);
+            SERIALCONSOLE.print(", gaugeMax: ");
+            SERIALCONSOLE.print(gaugeMax);
+            SERIALCONSOLE.print(", gaugeOutput: ");
+            SERIALCONSOLE.print(gaugeOutput);
+            */
+            return gaugeOutput;
+        }
+    }
+    //defaults to the linear map
+    //SERIALCONSOLE.println("Mapping failed, using the default map");
+    return map(inputSOC, 0, 100, settings.gaugelow, settings.gaugehigh);
+    
 }
 
 void printbmsstat() {
@@ -928,6 +1031,12 @@ void printbmsstat() {
   }
   if (digitalRead(IN1) == HIGH) {
     SERIALCONSOLE.print("| Key ON |");
+  }
+  if (batterySafeToCharge) {
+      SERIALCONSOLE.print("| batterySafeToCharge ON |");
+  }
+  else {
+      SERIALCONSOLE.print("| batterySafeToCharge OFF |");
   }
   if (balancecells == 1) {
     SERIALCONSOLE.print("|Balancing Active");
@@ -1230,10 +1339,11 @@ void Prechargecon() {
 }
 
 void contcon() {
+    //DP: commented out the OUT5 because I'm using that for gauge output now
   if (contctrl != contstat)  //check for contactor request change
   {
     if ((contctrl & 1) == 0) {
-      analogWrite(OUT5, 0);
+      //analogWrite(OUT5, 0);
       contstat = contstat & 254;
     }
     if ((contctrl & 2) == 0) {
@@ -1249,11 +1359,11 @@ void contcon() {
     if ((contctrl & 1) == 1) {
       if ((contstat & 1) != 1) {
         if (conttimer1 == 0) {
-          analogWrite(OUT5, 255);
+          //analogWrite(OUT5, 255);
           conttimer1 = millis() + pulltime;
         }
         if (conttimer1 < millis()) {
-          analogWrite(OUT5, settings.conthold);
+          //analogWrite(OUT5, settings.conthold);
           contstat = contstat | 1;
           conttimer1 = 0;
         }
@@ -1304,7 +1414,7 @@ void contcon() {
     */
   }
   if (contctrl == 0) {
-    analogWrite(OUT5, 0);
+    //analogWrite(OUT5, 0); //DP: commenting out because I'm using this for the gauge
     analogWrite(OUT6, 0);
   }
 }
